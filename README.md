@@ -15,4 +15,15 @@
 
 ## Software
 
+### Languages/Libraries
+
+- Python
+- CircuitPython
+- AdaFruit
+- CustomTKinter
+- PySerial
+- JSON
+
+### Usage
+
 Working on building fully custom macro software to interact with the pi
