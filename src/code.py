@@ -5,16 +5,22 @@ import usb_hid
 import digitalio
 import time
 import rotaryio
-from adafruit_hid.keycode import Keycode
-from adafruit_hid.keyboard import Keyboard
-from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
-from adafruit_hid.consumer_control import ConsumerControl
-from adafruit_hid.consumer_control_code import ConsumerControlCode
+import storage, usb_cdc
 
 from oled_display import OLEDDisplay
 import macro
 
-cc = ConsumerControl(usb_hid.devices)
+
+#---- Boot Mode ----
+
+#shutOff = digitalio.DigitalInOut(board.GP18)
+#shutOff.direction = digitalio.Direction.INPUT
+#shutOff.pull = digitalio.Pull.UP
+
+#if shutOff.value:
+    #storage.disable_usb_drive()
+    #usb_cdc.disable()
+
         
 # ------- Button Setup --------
 
@@ -26,39 +32,19 @@ for x in range(len(buttons)):
     
 # ----- Rotary Encoder Setup -----
 
-DT_Pin1 = digitalio.DigitalInOut(board.GP12)
-DT_Pin1.direction = digitalio.Direction.INPUT
-DT_Pin1.pull = digitalio.Pull.DOWN
-
-CLK_Pin1 = digitalio.DigitalInOut(board.GP13)
-CLK_Pin1.direction = digitalio.Direction.INPUT
-CLK_Pin1.pull = digitalio.Pull.DOWN
+encoder1 = rotaryio.IncrementalEncoder(board.GP13, board.GP12)
+encoder2 = rotaryio.IncrementalEncoder(board.GP20, board.GP19)
 
 SW1 = digitalio.DigitalInOut(board.GP14)
 SW1.direction = digitalio.Direction.INPUT
 SW1.pull = digitalio.Pull.UP
 
-DT_Pin2 = digitalio.DigitalInOut(board.GP19)
-DT_Pin2.direction = digitalio.Direction.INPUT
-DT_Pin2.pull = digitalio.Pull.DOWN
-
-CLK_Pin2 = digitalio.DigitalInOut(board.GP20)
-CLK_Pin2.direction = digitalio.Direction.INPUT
-CLK_Pin2.pull = digitalio.Pull.DOWN
-
 SW2 = digitalio.DigitalInOut(board.GP15)
 SW2.direction = digitalio.Direction.INPUT
 SW2.pull = digitalio.Pull.UP  
 
-previousValue1 = CLK_Pin1.value
-previousValue2 = CLK_Pin2.value
-
-def rotary_changed(clk_pin, dt_pin, previous_value):
-    clk_state = clk_pin.value
-    if previous_value != clk_state:
-        if clk_state == 0:
-            return dt_pin.value == 1
-    return None
+last_position1 = encoder1.position
+last_position2 = encoder2.position
 
 # -------- Display -------
 
@@ -73,12 +59,12 @@ while True:
     if key[0].value:
         macro.key1()
         dis.clearMacroLabel()
-        dis.setMacroLabel("Copied", 15, 30)
+        dis.setMacroLabel("Copied", 45, 45)
         
     if key[1].value:
         macro.key2()
         dis.clearMacroLabel()
-        dis.setMacroLabel("Pasted", 15, 30)
+        dis.setMacroLabel("Pasted", 45, 45)
         
     if key[2].value:
         macro.key3()
@@ -109,31 +95,37 @@ while True:
     if key[10].value:
         macro.key11()
     
-    result1 = rotary_changed(CLK_Pin1, DT_Pin1, previousValue1)
-    result2 = rotary_changed(CLK_Pin2, DT_Pin2, previousValue2)
+    # ----- Rotary Encoders ----
+    current_position1 = encoder1.position
+    if current_position1 > last_position1:
+        macro.r1up()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Volume Up!", 38, 45)
+    elif current_position1 < last_position1:
+        macro.r1down()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Volume Down!", 34, 45)
+    last_position1 = current_position1
     
-    if result1 is not None:
-        if result1:
-            cc.press(ConsumerControlCode.VOLUME_INCREMENT)
-            print("Volume Up")
-            cc.release()
-        else:
-            cc.press(ConsumerControlCode.VOLUME_DECREMENT)
-            print("Volume Down")
-            cc.release()
-        
-    if result2 is not None:
-        print("Encoder 2:", "left" if result2 else "right")
-    
-    previousValue1 = CLK_Pin1.value
-    previousValue2 = CLK_Pin2.value
+    current_position2 = encoder2.position
+    if current_position2 > last_position2:
+        macro.r2up()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Zoomed In!", 38, 45)
+    elif current_position2 < last_position2:
+        macro.r2down()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Zoomed Out!", 38, 45)
+    last_position2 = current_position2
     
     if not SW1.value:
-        print("Rotary 1 Click")
-        time.sleep(0.01)
+        macro.sw1()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Muted!", 45, 45)
      
     if not SW2.value:
-        print("Rotary 2 Click")
-        time.sleep(0.01)
-    
-    time.sleep(0.01)
+        macro.sw2()
+        dis.clearMacroLabel()
+        dis.setMacroLabel("Set to Original Size", 30, 45)
+        
+    time.sleep(0.005)
